@@ -3,9 +3,12 @@ from bson.objectid import ObjectId # Correct import for ObjectId
 from pydantic import BaseModel, Field, GetJsonSchemaHandler
 from pydantic_core import core_schema
 from typing import Optional, Any
+from dotenv import load_dotenv
+
+load_dotenv() # Load environment variables from .env file
 
 # --- MongoDB Connection ---
-MONGO_URI = "mongodb+srv://nmhieupham:yBmH3JnStm2pULJX@cluster0.igm4dmx.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+MONGO_URI = load_dotenv("MONGO_URI") # Load MongoDB URI from environment variable
 client = AsyncIOMotorClient(MONGO_URI)
 database = client.textanalysis
 text_collection = database.get_collection("texts")
