@@ -138,10 +138,6 @@ async def convert_audio_to_text(audio_file: UploadFile = File(...)):
     if not groq_client:
          raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Groq transcription service is not available (client not initialized).")
 
-    # Optional: Check file type if needed (Groq might handle various types via Whisper)
-    # if not audio_file.content_type.startswith("audio/"):
-    #      raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. Please upload an audio file.")
-
     print(f"Received audio file for Groq: {audio_file.filename}, Content-Type: {audio_file.content_type}")
 
     try:
@@ -157,12 +153,7 @@ async def convert_audio_to_text(audio_file: UploadFile = File(...)):
         # Call Groq API
         transcription = groq_client.audio.transcriptions.create(
             file=file_tuple,
-            model="whisper-large-v3", # Specify the Whisper model
-            # Optional parameters:
-            # prompt="...", # Optional prompt to guide the model
-            # response_format="json", # Options: json, text, srt, verbose_json, vtt
-            # language="en", # Optional: Specify language ISO-639-1 code
-            # temperature=0.0
+            model="whisper-large-v3", # Specify the Whisper modelccccccccccccccccccccccccccccccccccc
         )
         print("Groq transcription response received.")
 
