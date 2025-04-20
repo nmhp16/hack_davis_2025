@@ -49,7 +49,44 @@ def query_suicidal_or_not(conn, query=None):
         
         # Default query if none provided
         if not query:
-            query = "SELECT * FROM \"CRISISVOICE\".\"PUBLIC\".\"SUICIDALORNOT\""
+            query = """
+            WITH cleaned_data AS (
+                SELECT DISTINCT
+                    id,
+                    TRIM(text) as text,
+                    class
+                FROM "CRISISVOICE"."PUBLIC"."SUICIDALORNOT"
+                WHERE text IS NOT NULL 
+                    AND LENGTH(TRIM(text)) > 0
+                    AND class IS NOT NULL
+                    -- Exclude rows with URLs
+                    AND NOT REGEXP_LIKE(text, 'https?://\\S+|www\\.\\S+')
+                    -- Exclude rows with non-ASCII characters (including emojis)
+                    AND text = REGEXP_REPLACE(text, '[^\\x20-\\x7E]', '')
+                    -- Exclude rows with ASCII art (common patterns)
+                    AND NOT REGEXP_LIKE(text, '[ -~]{3,}\\n')
+                    AND NOT REGEXP_LIKE(text, '[ -~]{3,}\\r')
+            ),
+            balanced_data AS (
+                SELECT *
+                FROM (
+                    SELECT *,
+                        ROW_NUMBER() OVER (PARTITION BY class ORDER BY RANDOM()) as rn
+                    FROM cleaned_data
+                )
+                WHERE rn <= (
+                    SELECT MIN(class_count) 
+                    FROM (
+                        SELECT COUNT(*) as class_count 
+                        FROM cleaned_data 
+                        GROUP BY class
+                    )
+                )
+            )
+            SELECT id, text, class
+            FROM balanced_data
+            ORDER BY RANDOM();
+            """
         
         # Execute query
         cursor.execute(query)
@@ -107,8 +144,42 @@ def main():
     if conn:
         # Query to get all data from the table
         query = """
-        SELECT * FROM "CRISISVOICE"."PUBLIC"."SUICIDALORNOT"
-        LIMIT 10;
+        WITH cleaned_data AS (
+            SELECT DISTINCT
+                id,
+                TRIM(text) as text,
+                class
+            FROM "CRISISVOICE"."PUBLIC"."SUICIDALORNOT"
+            WHERE text IS NOT NULL 
+                AND LENGTH(TRIM(text)) > 0
+                AND class IS NOT NULL
+                -- Exclude rows with URLs
+                AND NOT REGEXP_LIKE(text, 'https?://\\S+|www\\.\\S+')
+                -- Exclude rows with non-ASCII characters (including emojis)
+                AND text = REGEXP_REPLACE(text, '[^\\x20-\\x7E]', '')
+                -- Exclude rows with ASCII art (common patterns)
+                AND NOT REGEXP_LIKE(text, '[ -~]{3,}\\n')
+                AND NOT REGEXP_LIKE(text, '[ -~]{3,}\\r')
+        ),
+        balanced_data AS (
+            SELECT *
+            FROM (
+                SELECT *,
+                    ROW_NUMBER() OVER (PARTITION BY class ORDER BY RANDOM()) as rn
+                FROM cleaned_data
+            )
+            WHERE rn <= (
+                SELECT MIN(class_count) 
+                FROM (
+                    SELECT COUNT(*) as class_count 
+                    FROM cleaned_data 
+                    GROUP BY class
+                )
+            )
+        )
+        SELECT id, text, class
+        FROM balanced_data
+        ORDER BY RANDOM();
         """
         
         # Execute query
