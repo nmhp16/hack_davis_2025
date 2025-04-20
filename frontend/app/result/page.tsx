@@ -123,7 +123,7 @@ export default function ResultPage() {
                             animate={{ rotate: [0, 10, 0, -10, 0] }}
                             transition={{ duration: 5, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
                             className="absolute -right-12 text-blue-400 opacity-70"
-                            >
+                        >
                             <Sparkles size={40} />
                         </motion.div>
                         <h1 className="text-5xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-blue-500 to-indigo-600 mb-2">
@@ -135,10 +135,10 @@ export default function ResultPage() {
                             <ChevronLeft className="h-4 w-4 mr-2" /> Back to Upload
                         </Button>
                         <p className="text-gray-400">
-                            <Clock className="h-4 w-4 inline mr-1" /> 
+                            <Clock className="h-4 w-4 inline mr-1" />
                             {(() => {
                                 const now = new Date();
-                                return `Analyzed on ${now.toLocaleDateString()} at ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                                return `Analyzed on ${now.toLocaleDateString()} at ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
                             })()}
                         </p>
                     </div>
@@ -170,20 +170,19 @@ export default function ResultPage() {
                                         <div className="flex justify-between items-center mb-3">
                                             <h3 className="text-xl text-white font-medium">Overall Risk Score</h3>
                                             <span className={`px-3 py-1 rounded-full text-sm font-semibold ${result.risk_category === 'High' || result.risk_category === 'Critical' ? 'bg-red-600' :
-                                                    result.risk_category === 'Medium' ? 'bg-yellow-600' : 'bg-green-600'
+                                                result.risk_category === 'Medium' ? 'bg-yellow-600' : 'bg-green-600'
                                                 }`}>
                                                 {result.risk_category} Risk
                                             </span>
                                         </div>
-                                        <div className={`text-5xl font-bold mb-2 ${
-                                            result.risk_category === 'High' || result.risk_category === 'Critical' ? 'text-red-500' :
-                                            result.risk_category === 'Medium' ? 'text-yellow-500' : 'text-green-500'
-                                        }`}>{result.overall_risk_score}%</div>
+                                        <div className={`text-5xl font-bold mb-2 ${result.risk_category === 'High' || result.risk_category === 'Critical' ? 'text-red-500' :
+                                                result.risk_category === 'Medium' ? 'text-yellow-500' : 'text-green-500'
+                                            }`}>{result.overall_risk_score}%</div>
                                         <div className="w-full bg-gray-700 rounded-full h-4">
                                             <div
                                                 style={{ width: `${result.overall_risk_score}%` }}
                                                 className={`h-full rounded-full ${result.overall_risk_score > 75 ? 'bg-red-500' :
-                                                        result.overall_risk_score > 50 ? 'bg-yellow-500' : 'bg-green-500'
+                                                    result.overall_risk_score > 50 ? 'bg-yellow-500' : 'bg-green-500'
                                                     }`}
                                             ></div>
                                         </div>
@@ -293,20 +292,19 @@ export default function ResultPage() {
                                                 <Sparkles className="text-blue-400" /> AI Insights
                                             </CardTitle>
                                         </CardHeader>
-                                        <CardContent>   
+                                        <CardContent>
                                             <div className="text-gray-300">
                                                 {result.ai_insights.split(/(Confidence Level: \d+%)/).map((part, i) => {
                                                     if (part.match(/Confidence Level: \d+%/)) {
                                                         return (
-                                                            <span 
+                                                            <span
                                                                 key={i}
-                                                                className={`font-semibold ${
-                                                                    result.risk_category === 'High' || result.risk_category === 'Critical' 
-                                                                        ? 'text-red-500' 
-                                                                        : result.risk_category === 'Medium' 
-                                                                            ? 'text-yellow-500' 
+                                                                className={`font-semibold ${result.risk_category === 'High' || result.risk_category === 'Critical'
+                                                                        ? 'text-red-500'
+                                                                        : result.risk_category === 'Medium'
+                                                                            ? 'text-yellow-500'
                                                                             : 'text-green-500'
-                                                                }`}
+                                                                    }`}
                                                             >
                                                                 {part}
                                                             </span>
@@ -315,7 +313,7 @@ export default function ResultPage() {
                                                     return <Fragment key={i}>{part}</Fragment>;
                                                 })}
                                             </div>
-                                            </CardContent>
+                                        </CardContent>
                                     </Card>
                                     <Card className="bg-gray-900/80 border-gray-700">
                                         <CardHeader>
@@ -333,24 +331,26 @@ export default function ResultPage() {
                                     </Card>
                                 </div>
 
-                                <motion.footer
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ duration: 0.6, delay: 0.6 }}
-                                    className="mt-12 text-center text-sm text-gray-500"
-                                >
-                                    <div className="p-4 rounded-lg border border-gray-800/30 bg-gray-800 backdrop-blur-sm inline-block">
-                                        <p>
-                                            If you're experiencing a crisis, please call the National Suicide Prevention Lifeline:{" "}
-                                            <span className="font-medium text-blue-400">988</span>
-                                        </p>
-                                    </div>
-                                    <p className="mt-4">© 2025 CrisisVoice. All rights reserved.</p>
-                                </motion.footer>
+
                             </CardContent>
                         </Card>
                     </motion.div>
                 </div>
+
+                <motion.footer
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.6, delay: 0.6 }}
+                    className="mt-12 text-center text-sm text-gray-500"
+                >
+                    <div className="p-4 rounded-lg border border-gray-800/30 bg-gray-800 backdrop-blur-sm inline-block">
+                        <p>
+                            If you're experiencing a crisis, please call the National Suicide Prevention Lifeline:{" "}
+                            <span className="font-medium text-blue-400">988</span>
+                        </p>
+                    </div>
+                    <p className="mt-4">© 2025 CrisisVoice. All rights reserved.</p>
+                </motion.footer>
             </div>
         </div>
     );
