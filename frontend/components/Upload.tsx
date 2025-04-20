@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Upload, AlertCircle, Info, FileText, Shield, Brain, Sparkles, ChevronRight, File, X, Check } from "lucide-react"
-import { Button } from "../components/ui/button"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card"
 import { motion } from "framer-motion"
 
@@ -25,72 +25,73 @@ export default function Crisis() {
     if (!files || files.length === 0) {
       return
     }
-    
+
     const file = files[0]
     // Validate file type
-    if (!file.type.includes('audio/mpeg') && !file.name.endsWith('.mp3')) {
-      setUploadError("Only MP3 files are supported")
+    if (!file.type.includes('audio/mpeg') && !file.name.endsWith('.mp3') && !file.type.includes('text/plain') && !file.name.endsWith('.txt')) {
+      setUploadError("Only MP3  or TXT files are supported")
       setSelectedFile(null)
       return
     }
-    
+
     setUploadError(null)
     setSelectedFile(file)
     setUploadComplete(false)
   }
-  
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setIsHovering(true)
   }
-  
+
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setIsHovering(false)
   }
-  
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setIsHovering(false)
-    
+
     const files = e.dataTransfer.files
     if (!files || files.length === 0) return
-    
+
     const file = files[0]
-    if (!file.type.includes('audio/mpeg') && !file.name.endsWith('.mp3')) {
-      setUploadError("Only MP3 files are supported")
+    // Validate file type
+    if (!file.type.includes('audio/mpeg') && !file.name.endsWith('.mp3') && !file.type.includes('text/plain') && !file.name.endsWith('.txt')) {
+      setUploadError("Only MP3  or TXT files are supported")
       setSelectedFile(null)
       return
     }
-    
+
     setUploadError(null)
     setSelectedFile(file)
     setUploadComplete(false)
   }
-  
+
   const handleUpload = async () => {
     if (!selectedFile) return
-    
+
     setIsUploading(true)
     setUploadError(null)
-    
+
     try {
       const formData = new FormData()
       formData.append('file', selectedFile)
-      
+
       // Replace with your actual API endpoint
       const response = await fetch('/analyze-text', {
         method: 'POST',
         body: formData,
       })
-      
+
       if (!response.ok) {
         throw new Error('Upload failed')
       }
-      
+
       setUploadComplete(true)
     } catch (error) {
       console.error('Upload error:', error)
@@ -99,7 +100,7 @@ export default function Crisis() {
       setIsUploading(false)
     }
   }
-  
+
   const clearSelection = () => {
     setSelectedFile(null)
     setUploadError(null)
@@ -147,7 +148,7 @@ export default function Crisis() {
               <Sparkles size={40} />
             </motion.div>
             <h1 className="text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-blue-500 to-indigo-600 mb-2">
-              SuAlcide
+              CrisisVoice
             </h1>
           </div>
           <p className="text-xl text-blue-400 max-w-2xl mx-auto">
@@ -178,11 +179,11 @@ export default function Crisis() {
               <input
                 type="file"
                 ref={fileInputRef}
-                accept=".mp3,audio/mpeg"
+                accept=".mp3,audio/mpeg,.txt,text/plain"
                 onChange={handleFileChange}
                 className="hidden"
               />
-              
+
               <motion.div
                 onHoverStart={() => setIsHovering(true)}
                 onHoverEnd={() => setIsHovering(false)}
@@ -213,7 +214,7 @@ export default function Crisis() {
                       <div>
                         <h3 className="text-lg font-medium text-white">Select file</h3>
                         <p className="text-gray-400 mt-1">Drag or drop your file HERE or click 'Select File' to upload</p>
-                        <p className="text-gray-500 text-sm mt-2">Supported format: .mp3</p>
+                        <p className="text-gray-500 text-sm mt-2">Supported format: .mp3, .txt</p>
                       </div>
                     </>
                   ) : (
@@ -228,7 +229,7 @@ export default function Crisis() {
                             <p className="text-gray-500 text-xs">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
                           </div>
                         </div>
-                        <button 
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             clearSelection();
@@ -238,23 +239,23 @@ export default function Crisis() {
                           <X className="h-5 w-5" />
                         </button>
                       </div>
-                      
+
                       {uploadError && (
                         <div className="bg-red-900/20 border border-red-800 text-red-400 text-sm p-2 rounded-md flex items-center gap-2 mb-4">
                           <AlertCircle className="h-4 w-4" />
                           {uploadError}
                         </div>
                       )}
-                      
+
                       {uploadComplete && (
                         <div className="bg-green-900/20 border border-green-800 text-green-400 text-sm p-2 rounded-md flex items-center gap-2 mb-4">
                           <Check className="h-4 w-4" />
                           File uploaded successfully
                         </div>
                       )}
-                      
+
                       <div className="flex gap-3">
-                        <Button 
+                        <Button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleUpload();
@@ -264,10 +265,10 @@ export default function Crisis() {
                         >
                           {isUploading ? 'Uploading...' : uploadComplete ? 'Uploaded' : 'Upload File'}
                         </Button>
-                        <Button 
+                        <Button
                           onClick={(e) => {
-                          e.stopPropagation();
-                          fileInputRef.current?.click();
+                            e.stopPropagation();
+                            fileInputRef.current?.click();
                           }}
                           className="text-gray-900 bg-white hover:bg-gray-700 hover:text-gray-900 transition-colors"
                         >
@@ -278,7 +279,7 @@ export default function Crisis() {
                   )}
                 </div>
               </motion.div>
-              
+
               {uploadError && !selectedFile && (
                 <div className="mt-2 bg-red-900/20 border border-red-800 text-red-400 text-sm p-2 rounded-md flex items-center gap-2">
                   <AlertCircle className="h-4 w-4" />
@@ -290,8 +291,7 @@ export default function Crisis() {
               <div className="flex items-start gap-3">
                 <Info className="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
                 <p className="text-sm text-gray-400">
-                  All data is processed securely and confidentially. No personal information is stored longer than
-                  necessary for analysis.
+                  All data is processed securely and confidentially. Personally identifiable information is never stored. With organizational consent, anonymized data may be retained to improve system accuracy and support model retraining.
                 </p>
               </div>
             </CardFooter>
@@ -363,7 +363,7 @@ export default function Crisis() {
               <span className="font-medium text-blue-400">988</span>
             </p>
           </div>
-          <p className="mt-4">© 2025 SuAlcide. All rights reserved.</p>
+          <p className="mt-4">© 2025 CrisisVoice. All rights reserved.</p>
         </motion.footer>
       </div>
     </div>
