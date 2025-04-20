@@ -2,3 +2,4 @@ fastapi
 fastapi.middleware.cors # CORS middleware
 uvicorn # ASGI server
 pydantic
+groq

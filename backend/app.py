@@ -6,7 +6,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from bson import ObjectId
 from transformers import pipeline
-import google.generativeai as genai
+import google.generativeai as genai # pip install google-generativeai
 # --- Remove Google Cloud Speech ---
 # from google.cloud import speech
 # ----------------------------------
@@ -115,9 +115,9 @@ Analyze the following text transcript carefully. Based ONLY on the provided text
 6.  `emotional_state`: A dictionary containing:
     *   `description`: A brief description of the dominant emotional state detected (e.g., distress, worthlessness, anger, ambivalence).
     *   `intensity_score`: A numerical score from 0 to 100 indicating the intensity of the detected emotional state.
-7.  `key_excerpts`: An array of 2-3 direct quotes from the text that are most indicative of the assessed risk or emotional state.
+7.  `key_excerpts`: An array of 3 direct quotes from the text that are most indicative of the assessed risk or emotional state.
 8.  `ai_insights`: A concise summary paragraph explaining the reasoning behind the assessment and highlighting the most critical indicators found in the text. Include a confidence level (e.g., "Confidence Level: 92%").
-9.  `recommended_actions`: An array of suggested actions based on the risk level (e.g., ["Immediate Intervention", "Safety Planning", "Emergency Services Referral", "Active Listening", "Follow-up Scheduling"]).
+9.  `recommended_actions`: An array of 3 suggested actions based on the risk level (e.g., ["Immediate Intervention", "Safety Planning", "Emergency Services Referral", "Active Listening", "Follow-up Scheduling"]).
 
 **Important:**
 - Base your analysis strictly on the provided text. Do not infer information not present.
@@ -249,8 +249,9 @@ async def convert_audio_to_text(audio_file: UploadFile = File(...)):
         # --- Call Gemini detailed analysis (gemini_analyze_text) ---
         # (Make sure this part correctly uses 'analysis_request' as shown previously)
         try:
+            combined_message = sentiment_analysis_result_dict + analysis_request
             print("Analyzing transcript with Gemini...")
-            gemini_analysis_result = await gemini_analyze_text(request=analysis_request) # Pass the original request with text
+            gemini_analysis_result = await gemini_analyze_text(request=combined_message) # Pass the original request with text
             print("Gemini analysis result received.")
         except HTTPException as gemini_http_e:
              print(f"HTTP Error during internal call to gemini_analyze_text: Status={gemini_http_e.status_code}, Detail={gemini_http_e.detail}")
@@ -262,11 +263,7 @@ async def convert_audio_to_text(audio_file: UploadFile = File(...)):
         # ---------------------------------------------------------
 
         # Return transcript and both analysis results
-        return {
-            "transcription": transcript,
-            "sentiment_analysis": sentiment_analysis_result_dict, # Return the dict
-            "gemini_analysis": gemini_analysis_result
-        }
+        return gemini_analysis_result
 
     except GroqError as e:
         print(f"Groq API Error during audio transcription: {e}")

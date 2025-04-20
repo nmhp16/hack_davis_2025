@@ -250,7 +250,6 @@ export default function Crisis() {
 
                       {uploadComplete && (
                         <div 
-                          onClick={() => window.location.href = '/result'}
                           style={{cursor: 'pointer'}}
                         >
                         </div>
@@ -260,7 +259,8 @@ export default function Crisis() {
                           onClick={(e) => {
                             e.stopPropagation();
                             handleUpload();
-                          }}
+                            window.location.href = '/result'}
+                          }
                           disabled={isUploading || uploadComplete}
                           className="flex-1 bg-indigo-700 hover:bg-blue-950 hover:text-gray-600 transition-colors"
                         >
