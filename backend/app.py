@@ -90,7 +90,7 @@ async def analyze_text(request: TextRequest):
 async def gemini_analyze_text(request: TextRequest):
     # --- Verify model name ---
     # Use "gemini-1.5-flash-latest" or another available/suitable model
-    model_name = "gemini-1.5-flash-latest" # Changed back from 2.0
+    model_name = "gemini-2.0-flash" # Changed back from 2.0
     # -------------------------
 
     try:
@@ -132,31 +132,53 @@ Analyze the following text transcript carefully. Based ONLY on the provided text
 
         # --- Configure generation parameters ---
         generation_config = genai.types.GenerationConfig(
-            temperature=0.5,
-            max_output_tokens=100
+            temperature=0.3,
+            max_output_tokens=1024,
+            # response_mime_type="application/json" # Consider uncommenting
         )
 
-        # --- Call the correct method with config ---
-        response = await model.generate_content_async( # Use async version
+        print(f"Sending prompt to {model_name} for analysis...")
+        response = await model.generate_content_async(
             prompt,
             generation_config=generation_config
         )
-
         print("Response received from Gemini.")
-        # Access the text safely
-        if response.parts:
-             return {"generated_text": response.text}
-        else:
-             # Log the reason for blockage/empty response
-             feedback_reason = "Unknown"
-             if response.prompt_feedback:
-                 feedback_reason = response.prompt_feedback.block_reason.name if response.prompt_feedback.block_reason else "No specific reason provided"
-             print(f"Gemini response blocked or empty. Reason: {feedback_reason}")
-             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to generate content. Reason: {feedback_reason}")
+
+        # --- FIX: Process and Validate JSON Response ---
+        try:
+            if not response.parts:
+                 # ... (error handling for blocked response) ...
+                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to generate content. Reason: Unknown error.")
+
+            raw_text = response.text
+            print(f"Raw Gemini response text:\n{raw_text}")
+
+            # Extract the JSON part
+            json_start = raw_text.find('{')
+            json_end = raw_text.rfind('}') + 1
+
+            if json_start != -1 and json_end != -1 and json_start < json_end:
+                json_string = raw_text[json_start:json_end]
+                print(f"Extracted JSON string:\n{json_string}")
+
+                # Parse the JSON string
+                analysis_result = json.loads(json_string)
+                # Return the parsed JSON object directly
+                return analysis_result # <-- RETURN PARSED DICTIONARY
+            else:
+                 print("Error: Could not find valid JSON object markers '{' and '}' in Gemini response.")
+                 raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to parse analysis result from model response (JSON markers not found).")
+
+        except json.JSONDecodeError as json_e:
+            # ... (JSON decoding error handling) ...
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error parsing JSON analysis result: {json_e}")
+        except Exception as parse_e:
+             # ... (Other parsing error handling) ...
+             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to process analysis result: {parse_e}")
+        # ------------------------------------------
 
     except Exception as e:
-        print(f"Error calling Gemini model {model_name}: {e}")
-        # Raise HTTPException instead of exit()
+        # ... (Error handling for Gemini call) ...
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error communicating with generative model: {e}")
 
 # --- Groq Audio Transcription Endpoint ---
@@ -249,9 +271,16 @@ async def convert_audio_to_text(audio_file: UploadFile = File(...)):
         # --- Call Gemini detailed analysis (gemini_analyze_text) ---
         # (Make sure this part correctly uses 'analysis_request' as shown previously)
         try:
-            combined_message = sentiment_analysis_result_dict + analysis_request
+            combined_message = f"""
+                Transcript: {transcript}
+                Sentiment Analysis Result: {sentiment_analysis_result_dict} (local model)
+                Sentiment Analysis Context: {sentiment_context_str} (local model)
+            """ 
+            
+            analysis_request.text = combined_message # Update the request with the combined message
+            
             print("Analyzing transcript with Gemini...")
-            gemini_analysis_result = await gemini_analyze_text(request=combined_message) # Pass the original request with text
+            gemini_analysis_result = await gemini_analyze_text(request=analysis_request) # Pass the original request with text
             print("Gemini analysis result received.")
         except HTTPException as gemini_http_e:
              print(f"HTTP Error during internal call to gemini_analyze_text: Status={gemini_http_e.status_code}, Detail={gemini_http_e.detail}")

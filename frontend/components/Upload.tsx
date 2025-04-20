@@ -6,6 +6,32 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card"
 import { motion } from "framer-motion"
 
+// --- Define the structure of the expected analysis results ---
+interface AnalysisResult {
+  overall_risk_score: number;
+  risk_category: string;
+  language_patterns: {
+    description: string;
+    intensity_score: number;
+  };
+  risk_factors: {
+    list: string[];
+    prevalence_score: number;
+  };
+  protective_factors: {
+    list: string[];
+    strength_score: number;
+  };
+  emotional_state: {
+    description: string;
+    intensity_score: number;
+  };
+  key_excerpts: string[];
+  ai_insights: string; // Assuming it includes confidence level as text
+  recommended_actions: string[];
+}
+// -----------------------------------------------------------
+
 export default function Crisis() {
   const [isHovering, setIsHovering] = useState(false)
   const [animateBackground, setAnimateBackground] = useState(false)
@@ -14,6 +40,7 @@ export default function Crisis() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploadComplete, setUploadComplete] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null); // Add state for results
 
   useEffect(() => {
     // Start background animation after component mounts
@@ -77,6 +104,8 @@ export default function Crisis() {
 
     setIsUploading(true)
     setUploadError(null)
+    setAnalysisResult(null) // Clear previous results
+    setUploadComplete(false)
 
     try {
       const formData = new FormData()
@@ -88,15 +117,42 @@ export default function Crisis() {
       })
 
       if (!response.ok) {
-        throw new Error('Upload failed')
+        // Try to get error details from backend response body
+        let errorDetail = 'Upload failed';
+        try {
+            const errorData = await response.json();
+            errorDetail = errorData.detail || `Upload failed with status: ${response.status}`;
+        } catch (parseError) {
+            errorDetail = `Upload failed with status: ${response.status}`;
+        }
+        throw new Error(errorDetail);
       }
 
-      setUploadComplete(true)
-    } catch (error) {
-      console.error('Upload error:', error)
-      setUploadError("Failed to upload file. Please try again.")
+      // --- FIX: Handle the direct response structure ---
+      const data = await response.json();
+
+      // Check if we have the expected structure (the analysis result directly)
+      if (data && typeof data.overall_risk_score === 'number') {
+        // Store the analysis result in localStorage for the next page
+        localStorage.setItem('analysisResult', JSON.stringify(data));
+        setAnalysisResult(data); // Store the entire response
+        setUploadComplete(true);
+
+        // Navigate to the results page
+        window.location.href = '/result';
+      } else {
+        console.error('Invalid analysis data in response:', data);
+        setUploadError("Upload successful, but received invalid analysis format from server.");
+      }
+      // -------------------------------------------
+
+    } catch (error: any) { // Catch specific error type
+      console.error('Upload error:', error);
+      // Use error.message which might contain backend details
+      setUploadError(error.message || "Failed to upload file. Please try again.");
+      setUploadComplete(false); // Ensure upload is not marked complete on error
     } finally {
-      setIsUploading(false)
+      setIsUploading(false);
     }
   }
 
@@ -250,7 +306,7 @@ export default function Crisis() {
 
                       {uploadComplete && (
                         <div 
-                          style={{cursor: 'pointer'}}
+                          className="clickable-div"
                         >
                         </div>
                       )}
@@ -258,13 +314,12 @@ export default function Crisis() {
                         <Button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleUpload();
-                            window.location.href = '/result'}
-                          }
+                            handleUpload(); // Just call handleUpload
+                          }}
                           disabled={isUploading || uploadComplete}
                           className="flex-1 bg-indigo-700 hover:bg-blue-950 hover:text-gray-600 transition-colors"
                         >
-                          {isUploading ? 'Uploading...' : uploadComplete ? 'Uploaded' : 'Upload File'}
+                          {isUploading ? 'Processing...' : uploadComplete ? 'Redirecting...' : 'Upload & Analyze'}
                         </Button>
                         <Button
                           onClick={(e) => {
