@@ -201,7 +201,7 @@ export default function ResultsPage({ onBack }: { onBack: () => void }) {
                                             <h4 className="text-base font-medium text-white">Key Transcript Excerpts</h4>
                                         </div>
                                         <div className="space-y-3 max-h-[180px]">
-                                            <div className="bg-gray-400 rounded border-l-2 border-red-500">
+                                            <div className="bg-gray-400 p-3 rounded border-l-2 border-red-500">
                                                 "I don't see the point anymore. Everyone would be better off without me."
                                             </div>
                                             <div className="bg-gray-400 p-3 rounded border-l-2 border-amber-500">
@@ -316,7 +316,7 @@ export default function ResultsPage({ onBack }: { onBack: () => void }) {
                             <span className="font-medium text-blue-400">988</span>
                         </p>
                     </div>
-                    <p className="mt-4">© 2025 SuAlcide. All rights reserved.</p>
+                    <p className="mt-4">© 2025 CrisisVoice. All rights reserved.</p>
                 </motion.footer>
             </div>
         </div>
