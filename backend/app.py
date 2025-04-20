@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException, status, File, UploadFile # Added File, UploadFile
+from fastapi import FastAPI, Request, HTTPException, status, File, UploadFile
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -7,14 +7,32 @@ from pydantic import BaseModel
 from bson import ObjectId
 from transformers import pipeline
 import google.generativeai as genai
-# --- Add Google Cloud Speech ---
-from google.cloud import speech # pip install google-cloud-speech
-# -----------------------------
+# --- Remove Google Cloud Speech ---
+# from google.cloud import speech
+# ----------------------------------
 import os
 from dotenv import load_dotenv
+# --- Import Groq ---
+from groq import Groq, GroqError # Import GroqError for specific handling
+# -----------------
 
 # --- Load Environment Variables ---
 load_dotenv() # Load variables from .env file ONCE at the start
+
+# --- Initialize Groq Client ---
+try:
+    groq_client = Groq(
+        api_key=os.environ.get("GROQ_API"), # Reads GROQ_API from .env
+    )
+    if not os.environ.get("GROQ_API"):
+        print("Warning: GROQ_API environment variable not set. Groq transcription will fail.")
+        groq_client = None # Ensure client is None if key is missing
+    else:
+        print("Groq client initialized successfully.")
+except Exception as e:
+    print(f"FATAL: Error initializing Groq client: {e}")
+    groq_client = None
+# ----------------------------
 
 # --- Configure Google AI ---
 try:
@@ -25,7 +43,7 @@ try:
     print("Google Generative AI configured successfully.")
 except Exception as e:
     print(f"FATAL: Error configuring Google Generative AI: {e}")
-
+# -------------------------
 
 # --- Import Database Objects and Models ---
 from database import (
@@ -110,56 +128,68 @@ async def gemini_analyze_text(request: TextRequest):
         # Raise HTTPException instead of exit()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error communicating with generative model: {e}")
 
-# --- Corrected Audio Transcription Endpoint ---
+# --- Groq Audio Transcription Endpoint ---
 @app.post("/convert-audio-to-text")
 async def convert_audio_to_text(audio_file: UploadFile = File(...)):
     """
     Receives an uploaded audio file (e.g., MP3), transcribes it using
-    Google Cloud Speech-to-Text, and returns the transcription.
+    the Groq API (Whisper), and returns the transcription.
     """
-    # Optional: Check file type if needed
-    if not audio_file.content_type.startswith("audio/"):
-         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. Please upload an audio file.")
+    if not groq_client:
+         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Groq transcription service is not available (client not initialized).")
 
-    print(f"Received audio file: {audio_file.filename}, Content-Type: {audio_file.content_type}")
+    # Optional: Check file type if needed (Groq might handle various types via Whisper)
+    # if not audio_file.content_type.startswith("audio/"):
+    #      raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. Please upload an audio file.")
+
+    print(f"Received audio file for Groq: {audio_file.filename}, Content-Type: {audio_file.content_type}")
 
     try:
         # Read the audio file content as bytes
         audio_content = await audio_file.read()
         print(f"Read {len(audio_content)} bytes from audio file.")
 
-        # Initialize Google Cloud Speech client
-        client = speech.SpeechClient()
+        # Prepare the file tuple for Groq API
+        # Use the uploaded filename
+        file_tuple = (audio_file.filename, audio_content)
 
-        # Prepare the audio object
-        audio = speech.RecognitionAudio(content=audio_content)
-
-        config = speech.RecognitionConfig(
-            language_code="en-US",  # Adjust language code as needed
-            enable_automatic_punctuation=True,
+        print("Sending audio to Groq API for transcription...")
+        # Call Groq API
+        transcription = groq_client.audio.transcriptions.create(
+            file=file_tuple,
+            model="whisper-large-v3", # Specify the Whisper model
+            # Optional parameters:
+            # prompt="...", # Optional prompt to guide the model
+            # response_format="json", # Options: json, text, srt, verbose_json, vtt
+            # language="en", # Optional: Specify language ISO-639-1 code
+            # temperature=0.0
         )
+        print("Groq transcription response received.")
 
-        print("Sending audio to Google Cloud Speech-to-Text for recognition...")
-        response = client.recognize(config=config, audio=audio)
-        print("Transcription response received.")
+        # Extract transcript text
+        # The response structure depends on response_format, default is json with 'text' field
+        transcript = transcription.text
 
-        # Extract transcript
-        transcript = ""
-        if response.results:
-            # Concatenate results if needed, but usually the first result is sufficient for short audio
-            transcript = response.results[0].alternatives[0].transcript
+        if transcript:
             print(f"Transcript: {transcript}")
             return {"transcription": transcript}
         else:
-            print("No transcription results returned by Google Cloud Speech.")
+            print("Groq returned no transcription results.")
+            # Consider if this should be 404 or maybe 200 with empty transcript
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transcription failed or audio contained no speech.")
 
+    except GroqError as e:
+        print(f"Groq API Error during audio transcription: {e}")
+        # Specific Groq error handling (e.g., authentication, rate limits)
+        status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        if e.status_code: # Use status code from Groq error if available
+             status_code = e.status_code
+        raise HTTPException(status_code=status_code, detail=f"Groq API error: {e.message or e}")
     except Exception as e:
-        print(f"Error during audio transcription: {e}")
-        # Log the full error for debugging
+        print(f"Error during Groq audio transcription: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error processing audio file: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error processing audio file with Groq: {e}")
     finally:
         # Ensure the temporary file handle is closed
         await audio_file.close()
