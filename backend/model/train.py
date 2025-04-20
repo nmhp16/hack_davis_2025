@@ -129,7 +129,7 @@ def main():
 
     # Load and preprocess data
     print('Loading data...')
-    df = pd.read_csv('datasets/Suicide_Detection.csv')
+    df = pd.read_csv('datasets/Suicide_Detection_Sanitized.csv')
     
     # Limit the number of samples if specified
     if args.num_samples is not None:
