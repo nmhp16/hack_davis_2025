@@ -80,9 +80,8 @@ export default function Crisis() {
 
     try {
       const formData = new FormData()
-      formData.append('file', selectedFile)
+      formData.append('audio_file', selectedFile)
 
-      // Replace with your actual API endpoint
       const response = await fetch('/convert-audio-to-text', {
         method: 'POST',
         body: formData,
