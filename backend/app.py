@@ -86,18 +86,38 @@ async def analyze_text(request: TextRequest):
 
 @app.post("/gemini-analyze-text")
 async def gemini_analyze_text(request: TextRequest):
-    model_name = "gemini-2.0-flash" # Corrected model name if needed, or use "gemini-1.0-pro" or "gemini-1.5-flash" etc.
+    # --- Verify model name ---
+    # Use "gemini-1.5-flash-latest" or another available/suitable model
+    model_name = "gemini-1.5-flash-latest"
+    # -------------------------
 
     try:
-        # Initialize model here if not done globally
         model = genai.GenerativeModel(model_name=model_name)
 
-        # --- Use the text from the request ---
-        # Corrected prompt concatenation
-        prompt = """
-            You are a helpful assistant. Please analyze the following text and provide insights or suggestions based on its content.
-            The text is as follows:
-        """ + request.text 
+        # --- Detailed Prompt for Structured JSON Output ---
+        prompt = f"""
+You are an AI assistant specialized in analyzing conversation transcripts for suicide risk assessment, designed to support trained crisis hotline professionals.
+Analyze the following text transcript carefully. Based ONLY on the provided text, identify key indicators and generate a structured JSON output containing the following fields:
+
+1.  `overall_risk_score`: An estimated numerical score from 0 to 100 representing the suicide risk level.
+2.  `risk_category`: A category based on the score ("Low", "Medium", "High", "Critical").
+3.  `language_patterns`: A brief description of concerning language patterns detected (e.g., hopelessness, finality, burden).
+4.  `risk_factors`: A list of identified risk factors (e.g., isolation, recent loss, sleep disturbance, specific plan).
+5.  `protective_factors`: A list of identified protective factors (e.g., family connection, seeking help, future plans).
+6.  `emotional_state`: A brief description of the dominant emotional state detected (e.g., distress, worthlessness, anger, ambivalence).
+7.  `key_excerpts`: An array of 2-3 direct quotes from the text that are most indicative of the assessed risk or emotional state.
+8.  `ai_insights`: A concise summary paragraph explaining the reasoning behind the assessment and highlighting the most critical indicators found in the text. Include a confidence level (e.g., "Confidence Level: 92%").
+9.  `recommended_actions`: An array of suggested actions based on the risk level (e.g., ["Immediate Intervention", "Safety Planning", "Emergency Services Referral", "Active Listening", "Follow-up Scheduling"]).
+
+**Important:**
+- Base your analysis strictly on the provided text. Do not infer information not present.
+- Provide the output ONLY in valid JSON format. Do not include any introductory text or explanations outside the JSON structure.
+- If the text is too short or lacks sufficient information for a category, indicate that (e.g., "Not enough information in text").
+
+**Transcript Text:**
+**JSON Output:**
+```json
+""" + request.text
 
         # --- Configure generation parameters ---
         generation_config = genai.types.GenerationConfig(
