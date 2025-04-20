@@ -103,7 +103,25 @@ async def gemini_analyze_text(request: TextRequest):
         # Raise HTTPException instead of exit()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error communicating with generative model: {e}")
 
+# Convert mp3 to text
+@app.post("/convert-audio-to-text")
+async def convert_audio_to_text(request: Request):
+    try:
+        # Assuming the request contains the audio file in a suitable format
+        audio_file = await request.form()
+        audio_path = audio_file["audio"].file # Adjust according to your file handling
 
+        # Use Google Generative AI's transcription capabilities
+        response = genai.transcribe_audio(audio_path)
+        if response.transcription:
+            return {"transcription": response.transcription}
+        else:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Transcription failed.")
+        
+    except Exception as e:
+        print(f"Error during audio transcription: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error processing audio file.")
+    
 # --- Database Endpoints ---
 @app.get("/texts", response_model=List[TextDB])
 async def list_texts():
