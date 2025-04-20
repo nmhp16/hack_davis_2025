@@ -73,6 +73,71 @@ app.add_middleware(
 
 # --- Endpoints ---
 
+@app.post("/analyze-text-file")
+async def analyze_text_file(file: UploadFile = File(...)):
+    """
+    Receives an uploaded text file (.txt), reads its content,
+    and analyzes it using the Gemini detailed analysis.
+    """
+    print(f"Received text file: {file.filename}, Content-Type: {file.content_type}")
+    
+    if not file.filename.endswith('.txt'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Only .txt files are supported"
+        )
+    
+    try:
+        # Read the text file content
+        content_bytes = await file.read()
+        
+        # Decode bytes to string (assuming UTF-8 encoding)
+        try:
+            text_content = content_bytes.decode('utf-8')
+        except UnicodeDecodeError:
+            # Try another common encoding if UTF-8 fails
+            try:
+                text_content = content_bytes.decode('latin-1')
+            except Exception as decode_error:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Could not decode text file: {str(decode_error)}"
+                )
+        
+        print(f"Successfully read text file ({len(text_content)} characters)")
+        
+        # Create request object for analysis
+        analysis_request = TextRequest(text=text_content)
+        
+        # Skip sentiment analysis and go straight to Gemini for detailed analysis
+        try:
+            print("Analyzing text with Gemini...")
+            analysis_result = await gemini_analyze_text(request=analysis_request)
+            print("Gemini analysis result received.")
+            return analysis_result
+            
+        except HTTPException as gemini_error:
+            print(f"HTTP Error during call to gemini_analyze_text: {gemini_error}")
+            raise gemini_error
+        except Exception as analysis_error:
+            print(f"Error analyzing text file: {analysis_error}")
+            traceback.print_exc()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Text analysis failed: {str(analysis_error)}"
+            )
+            
+    except Exception as e:
+        print(f"Error processing text file: {e}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing text file: {str(e)}"
+        )
+    finally:
+        # Ensure the uploaded file handle is closed
+        await file.close()
+
 @app.post("/analyze-text")
 async def analyze_text(request: TextRequest):
     try:
