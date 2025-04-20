@@ -82,7 +82,7 @@ export default function Crisis() {
       formData.append('file', selectedFile)
       
       // Replace with your actual API endpoint
-      const response = await fetch('/api/upload', {
+      const response = await fetch('/analyze-text', {
         method: 'POST',
         body: formData,
       })
@@ -357,7 +357,7 @@ export default function Crisis() {
           transition={{ duration: 0.6, delay: 0.6 }}
           className="mt-12 text-center text-sm text-gray-500"
         >
-          <div className="p-4 rounded-lg border border-gray-800/30 bg-gray-900/30 backdrop-blur-sm inline-block">
+          <div className="p-4 rounded-lg border border-gray-800/30 bg-gray-800 backdrop-blur-sm inline-block">
             <p>
               If you're experiencing a crisis, please call the National Suicide Prevention Lifeline:{" "}
               <span className="font-medium text-blue-400">988</span>
@@ -369,3 +369,5 @@ export default function Crisis() {
     </div>
   )
 }
+
+
