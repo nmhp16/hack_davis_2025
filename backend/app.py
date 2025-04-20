@@ -14,6 +14,8 @@ import os
 from dotenv import load_dotenv
 # --- Import Groq ---
 from groq import Groq, GroqError # Import GroqError for specific handling
+import json # Ensure json is imported
+import traceback # Ensure traceback is imported
 # -----------------
 
 # --- Load Environment Variables ---
@@ -88,7 +90,7 @@ async def analyze_text(request: TextRequest):
 async def gemini_analyze_text(request: TextRequest):
     # --- Verify model name ---
     # Use "gemini-1.5-flash-latest" or another available/suitable model
-    model_name = "gemini-1.5-flash-latest"
+    model_name = "gemini-1.5-flash-latest" # Changed back from 2.0
     # -------------------------
 
     try:
@@ -99,12 +101,20 @@ async def gemini_analyze_text(request: TextRequest):
 You are an AI assistant specialized in analyzing conversation transcripts for suicide risk assessment, designed to support trained crisis hotline professionals.
 Analyze the following text transcript carefully. Based ONLY on the provided text, identify key indicators and generate a structured JSON output containing the following fields:
 
-1.  `overall_risk_score`: An estimated numerical score from 0 to 100 representing the suicide risk level.
+1.  `overall_risk_score`: An estimated numerical score from 0 to 100 representing the overall suicide risk level detected in the text.
 2.  `risk_category`: A category based on the score ("Low", "Medium", "High", "Critical").
-3.  `language_patterns`: A brief description of concerning language patterns detected (e.g., hopelessness, finality, burden).
-4.  `risk_factors`: A list of identified risk factors (e.g., isolation, recent loss, sleep disturbance, specific plan).
-5.  `protective_factors`: A list of identified protective factors (e.g., family connection, seeking help, future plans).
-6.  `emotional_state`: A brief description of the dominant emotional state detected (e.g., distress, worthlessness, anger, ambivalence).
+3.  `language_patterns`: A dictionary containing:
+    *   `description`: A brief description of concerning language patterns detected (e.g., hopelessness, finality, burden).
+    *   `intensity_score`: A numerical score from 0 to 100 indicating the intensity or prevalence of these patterns in the text.
+4.  `risk_factors`: A dictionary containing:
+    *   `list`: A list of identified risk factors (e.g., isolation, recent loss, sleep disturbance, specific plan).
+    *   `prevalence_score`: A numerical score from 0 to 100 indicating the number and severity of risk factors mentioned.
+5.  `protective_factors`: A dictionary containing:
+    *   `list`: A list of identified protective factors (e.g., family connection, seeking help, future plans).
+    *   `strength_score`: A numerical score from 0 to 100 indicating the presence and strength of protective factors mentioned.
+6.  `emotional_state`: A dictionary containing:
+    *   `description`: A brief description of the dominant emotional state detected (e.g., distress, worthlessness, anger, ambivalence).
+    *   `intensity_score`: A numerical score from 0 to 100 indicating the intensity of the detected emotional state.
 7.  `key_excerpts`: An array of 2-3 direct quotes from the text that are most indicative of the assessed risk or emotional state.
 8.  `ai_insights`: A concise summary paragraph explaining the reasoning behind the assessment and highlighting the most critical indicators found in the text. Include a confidence level (e.g., "Confidence Level: 92%").
 9.  `recommended_actions`: An array of suggested actions based on the risk level (e.g., ["Immediate Intervention", "Safety Planning", "Emergency Services Referral", "Active Listening", "Follow-up Scheduling"]).
@@ -112,7 +122,8 @@ Analyze the following text transcript carefully. Based ONLY on the provided text
 **Important:**
 - Base your analysis strictly on the provided text. Do not infer information not present.
 - Provide the output ONLY in valid JSON format. Do not include any introductory text or explanations outside the JSON structure.
-- If the text is too short or lacks sufficient information for a category, indicate that (e.g., "Not enough information in text").
+- If the text is too short or lacks sufficient information for a category, indicate that (e.g., use "Not enough information in text" for descriptions, 0 or null for scores, and empty lists []).
+- Ensure all numerical scores (`overall_risk_score`, `intensity_score`, `prevalence_score`, `strength_score`) are between 0 and 100.
 
 **Transcript Text:**
 **JSON Output:**
@@ -153,12 +164,17 @@ Analyze the following text transcript carefully. Based ONLY on the provided text
 async def convert_audio_to_text(audio_file: UploadFile = File(...)):
     """
     Receives an uploaded audio file (e.g., MP3), transcribes it using
-    the Groq API (Whisper), and returns the transcription.
+    the Groq API (Whisper), analyzes the transcript using BOTH the local
+    sentiment model and the Gemini detailed analysis, and returns all results.
     """
     if not groq_client:
          raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Groq transcription service is not available (client not initialized).")
 
     print(f"Received audio file for Groq: {audio_file.filename}, Content-Type: {audio_file.content_type}")
+
+    transcript = "" # Initialize transcript variable
+    sentiment_analysis_result = None # Result from local model
+    gemini_analysis_result = None # Result from Gemini
 
     try:
         # Read the audio file content as bytes
@@ -166,43 +182,111 @@ async def convert_audio_to_text(audio_file: UploadFile = File(...)):
         print(f"Read {len(audio_content)} bytes from audio file.")
 
         # Prepare the file tuple for Groq API
-        # Use the uploaded filename
         file_tuple = (audio_file.filename, audio_content)
 
         print("Sending audio to Groq API for transcription...")
         # Call Groq API
-        transcription = groq_client.audio.transcriptions.create(
+        transcription_response = groq_client.audio.transcriptions.create(
             file=file_tuple,
-            model="whisper-large-v3", # Specify the Whisper modelccccccccccccccccccccccccccccccccccc
+            model="whisper-large-v3", # Specify the Whisper model
         )
         print("Groq transcription response received.")
 
         # Extract transcript text
-        # The response structure depends on response_format, default is json with 'text' field
-        transcript = transcription.text
+        transcript = transcription_response.text
 
-        if transcript:
-            print(f"Transcript: {transcript}")
-            return {"transcription": transcript}
-        else:
+        if not transcript:
             print("Groq returned no transcription results.")
-            # Consider if this should be 404 or maybe 200 with empty transcript
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transcription failed or audio contained no speech.")
+            return {
+                "transcription": "",
+                "sentiment_analysis": None,
+                "gemini_analysis": None,
+                "message": "Transcription successful but no speech detected."
+            }
+
+        print(f"Transcript: {transcript}")
+
+        # --- Create the request object needed by analysis functions ---
+        analysis_request = TextRequest(text=transcript)
+        # -----------------------------------------------------------
+
+        sentiment_analysis_result_dict = None # Store the dict result here
+        sentiment_context_str = None # Store the string version for Gemini
+
+        # --- Call local sentiment analysis (analyze_text) ---
+        try:
+            print("Analyzing transcript for suicidality (local model)...")
+            # analyze_text returns a list like [{'label': ..., 'score': ...}]
+            sentiment_result_list = await analyze_text(request=analysis_request)
+
+            # --- FIX: Access the dictionary inside the list ---
+            if sentiment_result_list and isinstance(sentiment_result_list, list) and len(sentiment_result_list) > 0:
+                # Get the first dictionary from the list
+                sentiment_analysis_result_dict = sentiment_result_list[0]
+
+                # Now perform checks and modifications on the dictionary
+                if sentiment_analysis_result_dict.get("label") == "LABEL_0":
+                    sentiment_analysis_result_dict["label"] = "Non-Suicidal"
+                elif sentiment_analysis_result_dict.get("label") == "LABEL_1":
+                    sentiment_analysis_result_dict["label"] = "Suicidal"
+
+                print(f"Local sentiment analysis result: {sentiment_analysis_result_dict}")
+                # Convert the final dict to a JSON string for Gemini context (if needed later)
+                # sentiment_context_str = json.dumps(sentiment_analysis_result_dict)
+            else:
+                 print("Local sentiment analysis did not return expected format.")
+                 sentiment_analysis_result_dict = {"error": "Invalid format from local model"}
+                 # sentiment_context_str = json.dumps(sentiment_analysis_result_dict)
+            # -------------------------------------------------
+
+        except Exception as sentiment_e:
+            print(f"Error during internal call to analyze_text (local model): {sentiment_e}")
+            traceback.print_exc() # Print full traceback for sentiment errors
+            sentiment_analysis_result_dict = {"error": f"Failed to get local sentiment analysis: {sentiment_e}"}
+            # sentiment_context_str = json.dumps(sentiment_analysis_result_dict) # Also provide error context
+        # ----------------------------------------------------
+
+        # --- Call Gemini detailed analysis (gemini_analyze_text) ---
+        # (Make sure this part correctly uses 'analysis_request' as shown previously)
+        try:
+            print("Analyzing transcript with Gemini...")
+            gemini_analysis_result = await gemini_analyze_text(request=analysis_request) # Pass the original request with text
+            print("Gemini analysis result received.")
+        except HTTPException as gemini_http_e:
+             print(f"HTTP Error during internal call to gemini_analyze_text: Status={gemini_http_e.status_code}, Detail={gemini_http_e.detail}")
+             gemini_analysis_result = {"error": f"Gemini analysis failed (HTTP {gemini_http_e.status_code}): {gemini_http_e.detail}"}
+        except Exception as gemini_e:
+            print(f"Error during internal call to gemini_analyze_text: {gemini_e}")
+            traceback.print_exc()
+            gemini_analysis_result = {"error": f"Failed to get Gemini analysis: {gemini_e}"}
+        # ---------------------------------------------------------
+
+        # Return transcript and both analysis results
+        return {
+            "transcription": transcript,
+            "sentiment_analysis": sentiment_analysis_result_dict, # Return the dict
+            "gemini_analysis": gemini_analysis_result
+        }
 
     except GroqError as e:
         print(f"Groq API Error during audio transcription: {e}")
-        # Specific Groq error handling (e.g., authentication, rate limits)
         status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        if e.status_code: # Use status code from Groq error if available
+        if hasattr(e, 'status_code') and e.status_code:
              status_code = e.status_code
-        raise HTTPException(status_code=status_code, detail=f"Groq API error: {e.message or e}")
+        detail = f"Groq API error: {e.message if hasattr(e, 'message') else e}"
+        raise HTTPException(status_code=status_code, detail=detail)
     except Exception as e:
-        print(f"Error during Groq audio transcription: {e}")
-        import traceback
+        print(f"Error during audio processing: {e}")
         traceback.print_exc()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error processing audio file with Groq: {e}")
+        # Include transcript if available but error happened later
+        error_detail = f"Error processing audio file: {e}"
+        # Return partial results if transcription was successful
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_detail
+        ) # Or return partial results like {"transcription": transcript, "error": error_detail}
     finally:
-        # Ensure the temporary file handle is closed
+        # Ensure the uploaded file handle is closed
         await audio_file.close()
 # -------------------------------------------------
 
