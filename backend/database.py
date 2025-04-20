@@ -1,15 +1,22 @@
 from motor.motor_asyncio import AsyncIOMotorClient
-from bson.objectid import ObjectId # Correct import for ObjectId
+from bson.objectid import ObjectId
 from pydantic import BaseModel, Field, GetJsonSchemaHandler
 from pydantic_core import core_schema
 from typing import Optional, Any
 from dotenv import load_dotenv
+import os # Import the os module
 
-load_dotenv() # Load environment variables from .env file
+load_dotenv() # Load environment variables from .env file ONCE
 
 # --- MongoDB Connection ---
-MONGO_URI = load_dotenv("MONGO_URI") # Load MongoDB URI from environment variable
-client = AsyncIOMotorClient(MONGO_URI)
+# Retrieve the URI from environment variables using os.getenv
+MONGO_URI = os.getenv("MONGO_URI")
+
+# Check if MONGO_URI was loaded successfully
+if not MONGO_URI:
+    raise ValueError("MONGO_URI environment variable not set or .env file not found.")
+
+client = AsyncIOMotorClient(MONGO_URI) # Now MONGO_URI should be the connection string
 database = client.textanalysis
 text_collection = database.get_collection("texts")
 # --------------------------

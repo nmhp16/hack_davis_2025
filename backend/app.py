@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from typing import List
 from bson import ObjectId # Import ObjectId from bson directly if needed
+from transformers import pipeline
+
 
 
 # --- Import Database Objects and Models ---
@@ -34,16 +36,14 @@ app.add_middleware(
 # Get text from the request body to process it
 @app.post("/analyze-text", response_model=TextDB, status_code=status.HTTP_201_CREATED)
 async def analyze_text(request: TextRequest): # Changed function name for clarity
+    classifier = pipeline("sentiment-analysis", model="sentinetyd/suicidality")
+
     # Extract the text from the request body
     text = request.text
 
-    # --- TODO: Replace with actual text processing/classification ---
-    # Example: Call your model or processing function here
-    # classification_result = your_model.predict(text)
-    processed_text = "Placeholder: suicidal" # Replace with actual result
-    # ---------------------------------------------------------------
+    result = classifier(text)
     
-    return processed_text
+    return result
 
 # --- Endpoints to get/set list texts ---
 @app.get("/texts", response_model=List[TextDB])
