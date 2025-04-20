@@ -82,7 +82,7 @@ export default function Crisis() {
       formData.append('file', selectedFile)
       
       // Replace with your actual API endpoint
-      const response = await fetch('/analyze-text', {
+      const response = await fetch('/convert-audio-to-text', {
         method: 'POST',
         body: formData,
       })
@@ -181,6 +181,7 @@ export default function Crisis() {
                 accept=".mp3,audio/mpeg"
                 onChange={handleFileChange}
                 className="hidden"
+                title="Upload an MP3 file"
               />
               
               <motion.div
@@ -234,6 +235,7 @@ export default function Crisis() {
                             clearSelection();
                           }}
                           className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-gray-800/50"
+                          title="Clear selection"
                         >
                           <X className="h-5 w-5" />
                         </button>

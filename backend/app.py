@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException, status
+from fastapi import FastAPI, Request, HTTPException, status, File, UploadFile # Added File, UploadFile
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -7,6 +7,9 @@ from pydantic import BaseModel
 from bson import ObjectId
 from transformers import pipeline
 import google.generativeai as genai
+# --- Add Google Cloud Speech ---
+from google.cloud import speech # pip install google-cloud-speech
+# -----------------------------
 import os
 from dotenv import load_dotenv
 
@@ -29,7 +32,6 @@ from database import (
     text_collection,
     TextDB,
     TextRequest,
-    PyObjectId
 )
 # -----------------------------------------
 
@@ -66,17 +68,18 @@ async def analyze_text(request: TextRequest):
 
 @app.post("/gemini-analyze-text")
 async def gemini_analyze_text(request: TextRequest):
-    model_name = "gemini-2.0-flash" 
+    model_name = "gemini-2.0-flash" # Corrected model name if needed, or use "gemini-1.0-pro" or "gemini-1.5-flash" etc.
 
     try:
         # Initialize model here if not done globally
         model = genai.GenerativeModel(model_name=model_name)
 
         # --- Use the text from the request ---
+        # Corrected prompt concatenation
         prompt = """
             You are a helpful assistant. Please analyze the following text and provide insights or suggestions based on its content.
             The text is as follows:
-        """ + {request.text}
+        """ + request.text 
 
         # --- Configure generation parameters ---
         generation_config = genai.types.GenerationConfig(
@@ -95,33 +98,73 @@ async def gemini_analyze_text(request: TextRequest):
         if response.parts:
              return {"generated_text": response.text}
         else:
-             print(f"Gemini response blocked or empty. Feedback: {response.prompt_feedback}")
-             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to generate content. Reason: {response.prompt_feedback}")
+             # Log the reason for blockage/empty response
+             feedback_reason = "Unknown"
+             if response.prompt_feedback:
+                 feedback_reason = response.prompt_feedback.block_reason.name if response.prompt_feedback.block_reason else "No specific reason provided"
+             print(f"Gemini response blocked or empty. Reason: {feedback_reason}")
+             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to generate content. Reason: {feedback_reason}")
 
     except Exception as e:
         print(f"Error calling Gemini model {model_name}: {e}")
         # Raise HTTPException instead of exit()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error communicating with generative model: {e}")
 
-# Convert mp3 to text
+# --- Corrected Audio Transcription Endpoint ---
 @app.post("/convert-audio-to-text")
-async def convert_audio_to_text(request: Request):
-    try:
-        # Assuming the request contains the audio file in a suitable format
-        audio_file = await request.form()
-        audio_path = audio_file["audio"].file # Adjust according to your file handling
+async def convert_audio_to_text(audio_file: UploadFile = File(...)):
+    """
+    Receives an uploaded audio file (e.g., MP3), transcribes it using
+    Google Cloud Speech-to-Text, and returns the transcription.
+    """
+    # Optional: Check file type if needed
+    if not audio_file.content_type.startswith("audio/"):
+         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file type. Please upload an audio file.")
 
-        # Use Google Generative AI's transcription capabilities
-        response = genai.transcribe_audio(audio_path)
-        if response.transcription:
-            return {"transcription": response.transcription}
+    print(f"Received audio file: {audio_file.filename}, Content-Type: {audio_file.content_type}")
+
+    try:
+        # Read the audio file content as bytes
+        audio_content = await audio_file.read()
+        print(f"Read {len(audio_content)} bytes from audio file.")
+
+        # Initialize Google Cloud Speech client
+        client = speech.SpeechClient()
+
+        # Prepare the audio object
+        audio = speech.RecognitionAudio(content=audio_content)
+
+        config = speech.RecognitionConfig(
+            language_code="en-US",  # Adjust language code as needed
+            enable_automatic_punctuation=True,
+        )
+
+        print("Sending audio to Google Cloud Speech-to-Text for recognition...")
+        response = client.recognize(config=config, audio=audio)
+        print("Transcription response received.")
+
+        # Extract transcript
+        transcript = ""
+        if response.results:
+            # Concatenate results if needed, but usually the first result is sufficient for short audio
+            transcript = response.results[0].alternatives[0].transcript
+            print(f"Transcript: {transcript}")
+            return {"transcription": transcript}
         else:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Transcription failed.")
-        
+            print("No transcription results returned by Google Cloud Speech.")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transcription failed or audio contained no speech.")
+
     except Exception as e:
         print(f"Error during audio transcription: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error processing audio file.")
-    
+        # Log the full error for debugging
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error processing audio file: {e}")
+    finally:
+        # Ensure the temporary file handle is closed
+        await audio_file.close()
+# -------------------------------------------------
+
 # --- Database Endpoints ---
 @app.get("/texts", response_model=List[TextDB])
 async def list_texts():
