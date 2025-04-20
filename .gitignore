@@ -1,0 +1,3 @@
+backend/model/saved_model
+!backend/model/saved_model/null
+backend/model/label_encoder.npy
