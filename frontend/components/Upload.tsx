@@ -248,12 +248,13 @@ export default function Crisis() {
                       )}
 
                       {uploadComplete && (
-                        <div className="bg-green-900/20 border border-green-800 text-green-400 text-sm p-2 rounded-md flex items-center gap-2 mb-4">
-                          <Check className="h-4 w-4" />
-                          File uploaded successfully
+                        <div 
+                          onClick={() => window.location.href = '/result'}
+                          style={{cursor: 'pointer'}}
+                        >
                         </div>
                       )}
-
+              
                       <div className="flex gap-3">
                         <Button
                           onClick={(e) => {
