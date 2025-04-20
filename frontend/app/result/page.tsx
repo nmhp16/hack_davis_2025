@@ -150,7 +150,7 @@ export default function ResultPage() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.2 }}
                     >
-                        <Card className="border-gray-800 bg-gray-900/80 backdrop-blur-sm shadow-2xl overflow-hidden border border-gray-800/50">
+                        <Card className="border-blue-400 bg-gray-900/80 backdrop-blur-sm shadow-2xl overflow-hidden">
                             <CardHeader className="border-b border-gray-800/50 bg-gradient-to-r from-gray-900 to-gray-900/95">
                                 <div className="flex items-center gap-3">
                                     <div className="bg-blue-900/30 p-2 rounded-lg">
@@ -179,12 +179,14 @@ export default function ResultPage() {
                                                 result.risk_category === 'Medium' ? 'text-yellow-500' : 'text-green-500'
                                             }`}>{result.overall_risk_score}%</div>
                                         <div className="w-full bg-gray-700 rounded-full h-4">
-                                            <div
-                                                style={{ width: `${result.overall_risk_score}%` }}
+                                            <motion.div
+                                                initial={{ width: "0%" }}
+                                                animate={{ width: `${result.overall_risk_score}%` }}
+                                                transition={{ duration: 2, ease: "easeOut" }}
                                                 className={`h-full rounded-full ${result.overall_risk_score > 75 ? 'bg-red-500' :
                                                     result.overall_risk_score > 50 ? 'bg-yellow-500' : 'bg-green-500'
-                                                    }`}
-                                            ></div>
+                                                }`}
+                                            ></motion.div>
                                         </div>
                                     </div>
                                 </div>
@@ -286,8 +288,8 @@ export default function ResultPage() {
 
                                 {/* AI Insights & Recommendations */}
                                 <div className="grid md:grid-cols-2 gap-6">
-                                    <Card className="bg-gray-900/80 border-gray-700">
-                                        <CardHeader>
+                                <Card className="bg-gray-900/80 border-white transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/20 hover:border-blue-400/50">
+                                <CardHeader>
                                             <CardTitle className="flex items-center gap-2 text-white">
                                                 <Sparkles className="text-blue-400" /> AI Insights
                                             </CardTitle>
@@ -315,7 +317,7 @@ export default function ResultPage() {
                                             </div>
                                         </CardContent>
                                     </Card>
-                                    <Card className="bg-gray-900/80 border-gray-700">
+                                    <Card className="bg-gray-900/80 border-white transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-blue-500/20 hover:border-blue-400/50">
                                         <CardHeader>
                                             <CardTitle className="flex items-center gap-2 text-white">
                                                 <ListChecks className="text-green-400" /> Recommended Actions

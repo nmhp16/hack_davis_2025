@@ -100,61 +100,72 @@ export default function Crisis() {
   }
 
   const handleUpload = async () => {
-    if (!selectedFile) return
+    if (!selectedFile) return;
 
-    setIsUploading(true)
-    setUploadError(null)
-    setAnalysisResult(null) // Clear previous results
-    setUploadComplete(false)
+    setIsUploading(true);
+    setUploadError(null);
+    setAnalysisResult(null); // Clear previous results
+    setUploadComplete(false);
 
     try {
-      const formData = new FormData()
-      formData.append('audio_file', selectedFile)
+      const formData = new FormData();
 
-      const response = await fetch('http://localhost:8000/convert-audio-to-text', {
+      // Different API endpoints and form field names based on file type
+      const endpoint = selectedFile.name.endsWith('.txt') || selectedFile.type.includes('text/plain')
+        ? 'http://localhost:8000/analyze-text-file'
+        : 'http://localhost:8000/convert-audio-to-text';
+      
+      // Add the file to form data with the correct field name
+      if (selectedFile.name.endsWith('.txt') || selectedFile.type.includes('text/plain')) {
+        formData.append('file', selectedFile);
+      } else {
+        formData.append('audio_file', selectedFile);
+      }
+
+      // Make the API request
+      const response = await fetch(endpoint, {
         method: 'POST',
         body: formData,
-      })
+      });
 
       if (!response.ok) {
         // Try to get error details from backend response body
         let errorDetail = 'Upload failed';
         try {
-            const errorData = await response.json();
-            errorDetail = errorData.detail || `Upload failed with status: ${response.status}`;
+          const errorData = await response.json();
+          errorDetail = errorData.detail || `Upload failed with status: ${response.status}`;
         } catch (parseError) {
-            errorDetail = `Upload failed with status: ${response.status}`;
+          errorDetail = `Upload failed with status: ${response.status}`;
         }
         throw new Error(errorDetail);
       }
 
-      // --- FIX: Handle the direct response structure ---
+      // Handle the response data
       const data = await response.json();
 
-      // Check if we have the expected structure (the analysis result directly)
+      // Check if we have the expected structure
       if (data && typeof data.overall_risk_score === 'number') {
         // Store the analysis result in localStorage for the next page
         localStorage.setItem('analysisResult', JSON.stringify(data));
-        setAnalysisResult(data); // Store the entire response
+        setAnalysisResult(data);
         setUploadComplete(true);
 
-        // Navigate to the results page
-        window.location.href = '/result';
+        // Navigate to the results page after a short delay
+        setTimeout(() => {
+          window.location.href = '/result';
+        }, 500);
       } else {
         console.error('Invalid analysis data in response:', data);
         setUploadError("Upload successful, but received invalid analysis format from server.");
       }
-      // -------------------------------------------
-
-    } catch (error: any) { // Catch specific error type
+    } catch (error: any) {
       console.error('Upload error:', error);
-      // Use error.message which might contain backend details
       setUploadError(error.message || "Failed to upload file. Please try again.");
-      setUploadComplete(false); // Ensure upload is not marked complete on error
+      setUploadComplete(false);
     } finally {
       setIsUploading(false);
     }
-  }
+  };
 
   const clearSelection = () => {
     setSelectedFile(null)
@@ -305,7 +316,7 @@ export default function Crisis() {
                       )}
 
                       {uploadComplete && (
-                        <div 
+                        <div
                           className="clickable-div"
                         >
                         </div>
@@ -425,5 +436,4 @@ export default function Crisis() {
     </div>
   )
 }
-
 
