@@ -117,7 +117,7 @@ Analyze the following text transcript carefully. Based ONLY on the provided text
     *   `intensity_score`: A numerical score from 0 to 100 indicating the intensity of the detected emotional state.
 7.  `key_excerpts`: An array of 3 direct quotes from the text that are most indicative of the assessed risk or emotional state.
 8.  `ai_insights`: A concise summary paragraph explaining the reasoning behind the assessment and highlighting the most critical indicators found in the text. Include a confidence level (e.g., "Confidence Level: 92%").
-9.  `recommended_actions`: An array of 3 suggested actions based on the risk level (e.g., ["Immediate Intervention", "Safety Planning", "Emergency Services Referral", "Active Listening", "Follow-up Scheduling"]).
+9.  `recommended_actions`: An array of 5 suggested actions based on the risk level (e.g., ["Immediate Intervention", "Safety Planning", "Emergency Services Referral", "Active Listening", "Follow-up Scheduling"]).
 
 **Important:**
 - Base your analysis strictly on the provided text. Do not infer information not present.
